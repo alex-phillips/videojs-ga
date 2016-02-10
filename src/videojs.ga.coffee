@@ -18,20 +18,29 @@ videojs.plugin 'ga', (options = {}) ->
     'end', 'seek', 'play', 'pause', 'resize',
     'volumeChange', 'error', 'fullscreen'
   ]
-  eventsToTrack = options.eventsToTrack || dataSetupOptions.eventsToTrack || defaultsEventsToTrack
-  percentsPlayedInterval = options.percentsPlayedInterval || dataSetupOptions.percentsPlayedInterval || 10
 
-  eventCategory = options.eventCategory || dataSetupOptions.eventCategory || 'Video'
-  # if you didn't specify a name, it will be 'guessed' from the video src after metadatas are loaded
-  eventLabel = options.eventLabel || dataSetupOptions.eventLabel
-
-  # if debug isn't specified
-  options.debug = options.debug || false
+  eventsToTrack = null
+  percentsPlayedInterval = null
+  eventCategory = null
+  eventLabel = null
 
   # init a few variables
   percentsAlreadyTracked = []
   seekStart = seekEnd = 0
   seeking = false
+  tracking = true
+
+  setoptions = (newoptions) ->
+    options = newoptions
+    eventsToTrack = options.eventsToTrack || dataSetupOptions.eventsToTrack || defaultsEventsToTrack
+    percentsPlayedInterval = options.percentsPlayedInterval || dataSetupOptions.percentsPlayedInterval || 10
+
+    eventCategory = options.eventCategory || dataSetupOptions.eventCategory || 'Video'
+    # if you didn't specify a name, it will be 'guessed' from the video src after metadatas are loaded
+    eventLabel = options.eventLabel || dataSetupOptions.eventLabel
+
+    # if debug isn't specified
+    options.debug = options.debug || false
 
   loaded = ->
     unless eventLabel
@@ -111,19 +120,28 @@ videojs.plugin 'ga', (options = {}) ->
     return
 
   sendbeacon = ( action, nonInteraction, value ) ->
+    unless tracking
+      return
+
     # console.log action, " ", nonInteraction, " ", value
     if window.ga
       ga 'send', 'event',
-        'eventCategory' 	: eventCategory
-        'eventAction'		  : action
-        'eventLabel'		  : eventLabel
+        'eventCategory'   : eventCategory
+        'eventAction'     : action
+        'eventLabel'      : eventLabel
         'eventValue'      : value
-        'nonInteraction'	: nonInteraction
+        'nonInteraction'  : nonInteraction
     else if window._gaq
       _gaq.push(['_trackEvent', eventCategory, action, eventLabel, value, nonInteraction])
     else if options.debug
       console.log("Google Analytics not detected")
     return
+
+  disabletracking = ->
+    tracking = false
+
+  enabletracking = ->
+    tracking = true
 
   @ready ->
     @on("loadedmetadata", loaded)
@@ -136,4 +154,11 @@ videojs.plugin 'ga', (options = {}) ->
     @on("error", error) if "error" in eventsToTrack
     @on("fullscreenchange", fullscreen) if "fullscreen" in eventsToTrack
 
-  return 'sendbeacon': sendbeacon
+  setoptions(options)
+
+  return {
+    'sendbeacon': sendbeacon
+    'setoptions': setoptions
+    'enabletracking': enabletracking
+    'disabletracking': disabletracking
+  }

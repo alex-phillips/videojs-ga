@@ -1,13 +1,13 @@
 /*
-* videojs-ga - v0.4.2 - 2015-02-06
-* Copyright (c) 2015 Michael Bensoussan
+* videojs-ga - v0.4.2 - 2016-02-10
+* Copyright (c) 2016 Michael Bensoussan
 * Licensed MIT
 */
 (function() {
   var __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
   videojs.plugin('ga', function(options) {
-    var dataSetupOptions, defaultsEventsToTrack, end, error, eventCategory, eventLabel, eventsToTrack, fullscreen, loaded, parsedOptions, pause, percentsAlreadyTracked, percentsPlayedInterval, play, resize, seekEnd, seekStart, seeking, sendbeacon, timeupdate, volumeChange;
+    var dataSetupOptions, defaultsEventsToTrack, disabletracking, enabletracking, end, error, eventCategory, eventLabel, eventsToTrack, fullscreen, loaded, parsedOptions, pause, percentsAlreadyTracked, percentsPlayedInterval, play, resize, seekEnd, seekStart, seeking, sendbeacon, setoptions, timeupdate, tracking, volumeChange;
     if (options == null) {
       options = {};
     }
@@ -19,14 +19,22 @@
       }
     }
     defaultsEventsToTrack = ['loaded', 'percentsPlayed', 'start', 'end', 'seek', 'play', 'pause', 'resize', 'volumeChange', 'error', 'fullscreen'];
-    eventsToTrack = options.eventsToTrack || dataSetupOptions.eventsToTrack || defaultsEventsToTrack;
-    percentsPlayedInterval = options.percentsPlayedInterval || dataSetupOptions.percentsPlayedInterval || 10;
-    eventCategory = options.eventCategory || dataSetupOptions.eventCategory || 'Video';
-    eventLabel = options.eventLabel || dataSetupOptions.eventLabel;
-    options.debug = options.debug || false;
+    eventsToTrack = null;
+    percentsPlayedInterval = null;
+    eventCategory = null;
+    eventLabel = null;
     percentsAlreadyTracked = [];
     seekStart = seekEnd = 0;
     seeking = false;
+    tracking = true;
+    setoptions = function(newoptions) {
+      options = newoptions;
+      eventsToTrack = options.eventsToTrack || dataSetupOptions.eventsToTrack || defaultsEventsToTrack;
+      percentsPlayedInterval = options.percentsPlayedInterval || dataSetupOptions.percentsPlayedInterval || 10;
+      eventCategory = options.eventCategory || dataSetupOptions.eventCategory || 'Video';
+      eventLabel = options.eventLabel || dataSetupOptions.eventLabel;
+      return options.debug = options.debug || false;
+    };
     loaded = function() {
       if (!eventLabel) {
         eventLabel = this.currentSrc().split("/").slice(-1)[0].replace(/\.(\w{3,4})(\?.*)?$/i, '');
@@ -102,6 +110,9 @@
       }
     };
     sendbeacon = function(action, nonInteraction, value) {
+      if (!tracking) {
+        return;
+      }
       if (window.ga) {
         ga('send', 'event', {
           'eventCategory': eventCategory,
@@ -115,6 +126,12 @@
       } else if (options.debug) {
         console.log("Google Analytics not detected");
       }
+    };
+    disabletracking = function() {
+      return tracking = false;
+    };
+    enabletracking = function() {
+      return tracking = true;
     };
     this.ready(function() {
       this.on("loadedmetadata", loaded);
@@ -141,8 +158,12 @@
         return this.on("fullscreenchange", fullscreen);
       }
     });
+    setoptions(options);
     return {
-      'sendbeacon': sendbeacon
+      'sendbeacon': sendbeacon,
+      'setoptions': setoptions,
+      'enabletracking': enabletracking,
+      'disabletracking': disabletracking
     };
   });
 
